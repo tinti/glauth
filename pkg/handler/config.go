@@ -183,6 +183,7 @@ func (h configHandler) Search(bindDN string, searchReq ldap.SearchRequest, conn 
 		return ldap.ServerSearchResult{ResultCode: ldap.LDAPResultInsufficientAccessRights}, fmt.Errorf("Search Error: search BaseDN %s is not in our BaseDN %s", searchBaseDN, h.cfg.Backend.BaseDN)
 	}
 	// return all users in the config file - the LDAP library will filter results for us
+
 	entries := []*ldap.Entry{}
 	filterEntity, err := ldap.GetFilterObjectClass(searchReq.Filter)
 	if err != nil {
@@ -202,6 +203,11 @@ func (h configHandler) Search(bindDN string, searchReq ldap.SearchRequest, conn 
 			attrs = append(attrs, &ldap.EntryAttribute{Name: "uniqueMember", Values: h.getGroupMembers(g.UnixID)})
 			attrs = append(attrs, &ldap.EntryAttribute{Name: "memberUid", Values: h.getGroupMemberIDs(g.UnixID)})
 			dn := fmt.Sprintf("cn=%s,%s=groups,%s", g.Name, h.cfg.Backend.GroupFormat, h.cfg.Backend.BaseDN)
+
+			if h.cfg.Backend.IncludeDistinguishedNameAsDn {
+				attrs = append(attrs, &ldap.EntryAttribute{Name: "distinguishedName", Values: []string{dn}})
+			}
+
 			entries = append(entries, &ldap.Entry{DN: dn, Attributes: attrs})
 		}
 	case "posixaccount", "":
@@ -262,6 +268,11 @@ func (h configHandler) Search(bindDN string, searchReq ldap.SearchRequest, conn 
 				attrs = append(attrs, &ldap.EntryAttribute{Name: h.cfg.Backend.SSHKeyAttr, Values: u.SSHKeys})
 			}
 			dn := fmt.Sprintf("%s=%s,%s=%s,%s", h.cfg.Backend.NameFormat, u.Name, h.cfg.Backend.GroupFormat, h.getGroupName(u.PrimaryGroup), h.cfg.Backend.BaseDN)
+
+			if h.cfg.Backend.IncludeDistinguishedNameAsDn {
+				attrs = append(attrs, &ldap.EntryAttribute{Name: "distinguishedName", Values: []string{dn}})
+			}
+
 			entries = append(entries, &ldap.Entry{DN: dn, Attributes: attrs})
 		}
 	}

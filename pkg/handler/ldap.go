@@ -103,6 +103,29 @@ func (h ldapHandler) Search(boundDN string, searchReq ldap.SearchRequest, conn n
 		stats.Frontend.Add("search_ldapSession_errors", 1)
 		return ldap.ServerSearchResult{ResultCode: ldap.LDAPResultOperationsError}, nil
 	}
+
+	hasDistinguishedNameInSearch := false
+	distinguishedNameAttrIndex := -1
+	if h.cfg.Backend.DisableDistinguishedNameSubstringSearch {
+		// Find 'distinguishedName'
+		index := -1
+		for i, attr := range searchReq.Attributes {
+			if attr == "distinguishedName" {
+				hasDistinguishedNameInSearch = true
+				distinguishedNameAttrIndex = i
+				index = i
+				break
+			}
+		}
+
+		// Remove 'distinguishedName' from search attributes
+		if index != -1 {
+			copy(searchReq.Attributes[index:], searchReq.Attributes[index+1:])
+			searchReq.Attributes[len(searchReq.Attributes)-1] = ""
+			searchReq.Attributes = searchReq.Attributes[:len(searchReq.Attributes)-1]
+		}
+	}
+
 	search := ldap.NewSearchRequest(
 		searchReq.BaseDN,
 		searchReq.Scope,
@@ -118,6 +141,27 @@ func (h ldapHandler) Search(boundDN string, searchReq ldap.SearchRequest, conn n
 	h.log.Debug(fmt.Sprintf("Search req to backend: %# v", pretty.Formatter(search)))
 	sr, err := s.ldap.Search(search)
 	h.log.Debug(fmt.Sprintf("Backend Search result: %# v", pretty.Formatter(sr)))
+
+	if h.cfg.Backend.IncludeDistinguishedNameAsDn {
+		// Add 'distinguishedName' to attributes
+		for i, _ := range sr.Entries {
+			entry := sr.Entries[i]
+			entry.Attributes = append(entry.Attributes,
+						&ldap.EntryAttribute{
+							Name: "distinguishedName",
+							Values: []string{entry.DN},
+			})
+		}
+	}
+
+	if h.cfg.Backend.DisableDistinguishedNameSubstringSearch && hasDistinguishedNameInSearch {
+		// Add 'distinguishedName' back to search attributes
+		index := distinguishedNameAttrIndex
+		searchReq.Attributes = append(searchReq.Attributes, "")
+		copy(searchReq.Attributes[index+1:], searchReq.Attributes[index:])
+		searchReq.Attributes[index] = "distinguishedName"
+	}
+
 	ssr := ldap.ServerSearchResult{
 		Entries:   sr.Entries,
 		Referrals: sr.Referrals,
