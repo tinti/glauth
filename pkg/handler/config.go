@@ -262,6 +262,12 @@ func (h configHandler) Search(bindDN string, searchReq ldap.SearchRequest, conn 
 				attrs = append(attrs, &ldap.EntryAttribute{Name: h.cfg.Backend.SSHKeyAttr, Values: u.SSHKeys})
 			}
 			dn := fmt.Sprintf("%s=%s,%s=%s,%s", h.cfg.Backend.NameFormat, u.Name, h.cfg.Backend.GroupFormat, h.getGroupName(u.PrimaryGroup), h.cfg.Backend.BaseDN)
+
+			// Useful if any application expects 'distinguishedName' instead of 'dn'.
+			if h.cfg.Backend.DnInDistinguishedName {
+				attrs = append(attrs, &ldap.EntryAttribute{Name: "distinguishedName", Values: []string{dn}})
+			}
+
 			entries = append(entries, &ldap.Entry{DN: dn, Attributes: attrs})
 		}
 	}

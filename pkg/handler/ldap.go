@@ -118,6 +118,19 @@ func (h ldapHandler) Search(boundDN string, searchReq ldap.SearchRequest, conn n
 	h.log.Debug(fmt.Sprintf("Search req to backend: %# v", pretty.Formatter(search)))
 	sr, err := s.ldap.Search(search)
 	h.log.Debug(fmt.Sprintf("Backend Search result: %# v", pretty.Formatter(sr)))
+
+	// Useful if any application expects 'distinguishedName' instead of 'dn'.
+	if h.cfg.Backend.DnInDistinguishedName {
+		for i, _ := range sr.Entries {
+			entry := sr.Entries[i]
+			entry.Attributes = append(entry.Attributes,
+						&ldap.EntryAttribute{
+							Name: "distinguishedName",
+							Values: []string{entry.DN},
+			})
+		}
+	}
+
 	ssr := ldap.ServerSearchResult{
 		Entries:   sr.Entries,
 		Referrals: sr.Referrals,
