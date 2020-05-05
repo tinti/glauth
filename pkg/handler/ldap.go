@@ -111,7 +111,7 @@ func (h ldapHandler) Search(boundDN string, searchReq ldap.SearchRequest, conn n
 		searchReq.TimeLimit,
 		searchReq.TypesOnly,
 		searchReq.Filter,
-		searchReq.Attributes,
+		[]string{},
 		searchReq.Controls,
 	)
 
