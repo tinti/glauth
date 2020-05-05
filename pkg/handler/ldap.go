@@ -103,6 +103,18 @@ func (h ldapHandler) Search(boundDN string, searchReq ldap.SearchRequest, conn n
 		stats.Frontend.Add("search_ldapSession_errors", 1)
 		return ldap.ServerSearchResult{ResultCode: ldap.LDAPResultOperationsError}, nil
 	}
+
+	if h.cfg.Backend.TranslateDistinguishedNameToDn {
+		// Replace dn with distinguishedName in search request, this may result in two
+		// distinguishedName attributes
+		for i, _ := range searchReq.Attributes {
+			attr := &searchReq.Attributes[i]
+			if *attr == "distinguishedName" {
+				*attr = "dn"
+			}
+		}
+	}
+
 	search := ldap.NewSearchRequest(
 		searchReq.BaseDN,
 		searchReq.Scope,
@@ -118,6 +130,20 @@ func (h ldapHandler) Search(boundDN string, searchReq ldap.SearchRequest, conn n
 	h.log.Debug(fmt.Sprintf("Search req to backend: %# v", pretty.Formatter(search)))
 	sr, err := s.ldap.Search(search)
 	h.log.Debug(fmt.Sprintf("Backend Search result: %# v", pretty.Formatter(sr)))
+
+	if h.cfg.Backend.IncludeDistinguishedNameAsDn {
+		// Add distinguishedName in search response, this may result in two
+		// distinguishedName attributes
+		for i, _ := range sr.Entries {
+			entry := sr.Entries[i]
+			entry.Attributes = append(entry.Attributes,
+						&ldap.EntryAttribute{
+							Name: "distinguishedName",
+							Values: []string{entry.DN},
+			})
+		}
+	}
+
 	ssr := ldap.ServerSearchResult{
 		Entries:   sr.Entries,
 		Referrals: sr.Referrals,

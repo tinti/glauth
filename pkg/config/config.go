@@ -2,14 +2,16 @@ package config
 
 // config file
 type Backend struct {
-	BaseDN      string
-	Datastore   string
-	Insecure    bool     // For LDAP backend only
-	Servers     []string // For LDAP backend only
-	NameFormat  string
-	GroupFormat string
-	SSHKeyAttr  string
-	UseGraphAPI bool // For ownCloud backend only
+	BaseDN                         string
+	Datastore                      string
+	Insecure                       bool     // For LDAP backend only
+	Servers                        []string // For LDAP backend only
+	NameFormat                     string
+	GroupFormat                    string
+	SSHKeyAttr                     string
+	UseGraphAPI                    bool // For ownCloud backend only
+	IncludeDistinguishedNameAsDn   bool // For config and LDAP backends
+	TranslateDistinguishedNameToDn bool // For config and LDAP backends
 }
 type Frontend struct {
 	AllowedBaseDNs []string // For LDAP backend only
